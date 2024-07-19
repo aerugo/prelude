@@ -1,0 +1,186 @@
+#!/bin/bash
+
+# Function to print usage information
+print_usage() {
+    echo "Usage: $0 [-p <relative_path>] [-f <output_filename>] [--help] [--manual]"
+    echo "  -p <relative_path>    Specify a relative path to include only files below that path"
+    echo "  -f <output_filename>  Specify a filename to save the prompt"
+    echo "  --help                Display help information"
+    echo "  --manual              Display the manual"
+}
+
+# Function to print manual
+print_manual() {
+    echo "MANUAL"
+    echo "This script generates a prompt containing the file tree and concatenated file contents of a specified directory."
+    echo "The prompt can be copied to the clipboard and optionally saved to a file."
+    echo
+    echo "OPTIONS"
+    echo "  -p <relative_path>"
+    echo "      Specify a relative path to include only files below that path."
+    echo "      If not specified, the script will include all files in the current directory and its subdirectories."
+    echo
+    echo "  -f <output_filename>"
+    echo "      Specify a filename to save the generated prompt."
+    echo "      If not specified, the prompt will only be copied to the clipboard."
+    echo
+    echo "  --help"
+    echo "      Display help information."
+    echo
+    echo "  --manual"
+    echo "      Display the manual."
+    echo
+    echo "EXAMPLES"
+    echo "  $0"
+    echo "      Generate a prompt for all files in the current directory and copy it to the clipboard."
+    echo
+    echo "  $0 -p src"
+    echo "      Generate a prompt for all files below the specified path and copy it to the clipboard."
+    echo
+    echo "  $0 -f prompt.txt"
+    echo "      Generate a prompt for all files in the current directory and save it to a file."
+    echo
+    echo "  $0 -p src -f prompt.txt"
+    echo "      Generate a prompt for all files below the specified path and save it to a file."
+}
+
+# Function to check if a command exists
+command_exists() {
+    command -v "$1" >/dev/null 2>&1
+}
+
+# Function to copy to clipboard
+copy_to_clipboard() {
+    local prompt="$1"
+    if command_exists pbcopy; then
+        echo -e "$prompt" | pbcopy
+    elif command_exists xclip; then
+        echo -e "$prompt" | xclip -selection clipboard
+    elif command_exists xsel; then
+        echo -e "$prompt" | xsel --clipboard --input
+    elif command_exists clip; then
+        echo -e "$prompt" | clip
+    else
+        echo "Error: No clipboard command found. Install pbcopy, xclip, xsel, or clip."
+        exit 1
+    fi
+}
+
+# Initialize variables
+specified_path=""
+output_filename=""
+
+# Parse command line arguments
+while getopts ":p:f:-:" opt; do
+    case ${opt} in
+        p )
+            specified_path=$OPTARG
+            ;;
+        f )
+            output_filename=$OPTARG
+            ;;
+        - )
+            case "${OPTARG}" in
+                help)
+                    print_usage
+                    exit 0
+                    ;;
+                manual)
+                    print_manual
+                    exit 0
+                    ;;
+                *)
+                    echo "Invalid option: --$OPTARG" 1>&2
+                    print_usage
+                    exit 1
+                    ;;
+            esac
+            ;;
+        \? )
+            echo "Invalid option: $OPTARG" 1>&2
+            print_usage
+            exit 1
+            ;;
+        : )
+            echo "Invalid option: $OPTARG requires an argument" 1>&2
+            print_usage
+            exit 1
+            ;;
+    esac
+done
+
+# Check if the specified path exists relative to the current directory
+if [ -n "$specified_path" ]; then
+    if [ ! -d "$specified_path" ]; then
+        echo "Error: The specified path '$specified_path' does not exist or is not a directory."
+        exit 1
+    fi
+    # Convert to absolute path for later comparison
+    specified_path=$(realpath "$specified_path")
+fi
+
+# Define the patterns to exclude
+exclude_patterns=".preludeignore|.gitignore|prelude.sh"
+
+# Add all in .gitignore that are not commented out, not empty, and not already in exclude_patterns to exclude_patterns if .gitignore exists
+if [ -f ".gitignore" ]; then
+    while IFS= read -r line; do
+        if [[ ! "$line" =~ ^#.*$ ]] && [[ -n "$line" ]] && [[ ! "$exclude_patterns" =~ $line ]]; then
+            exclude_patterns+="|$line"
+        fi
+    done < ".gitignore"
+fi
+
+# Add all in .preludeignore that are not commented out, not empty, and not already in exclude_patterns to exclude_patterns if .preludeignore exists
+if [ -f ".preludeignore" ]; then
+    while IFS= read -r line; do
+        if [[ ! "$line" =~ ^#.*$ ]] && [[ -n "$line" ]] && [[ ! "$exclude_patterns" =~ $line ]]; then
+            exclude_patterns+="|$line"
+        fi
+    done < ".preludeignore"
+fi
+
+# Get the file tree excluding specific patterns
+if [ -n "$specified_path" ]; then
+    file_tree=$(tree -fi "$specified_path" -I "$exclude_patterns")
+else
+    file_tree=$(tree -fi -I "$exclude_patterns")
+fi
+
+# Initialize an empty string to hold the concatenated file contents
+concatenated_files=""
+
+# Iterate over each line in the file tree output
+while IFS= read -r line; do
+    # Skip directories and non-files
+    if [ -f "$line" ]; then
+        # Check if the file is within the specified path
+        if [ -z "$specified_path" ] || [[ "$(realpath "$line")" == "$specified_path"* ]]; then
+            concatenated_files+="\n\n--- File: $line ---\n\n"
+            concatenated_files+="$(cat "$line")"
+        fi
+    fi
+done <<< "$file_tree"
+
+# Build the prompt with the file tree and concatenated file contents
+prompt="File Tree:\n$file_tree\n\nConcatenated Files:\n$concatenated_files"
+
+prompt_pretext="I want you to help me fix some issues with my code. I have attached the code and file structure."
+
+# Add the pretext to the prompt
+prompt="$prompt_pretext\n\n$prompt"
+
+# Copy the prompt to clipboard
+copy_to_clipboard "$prompt"
+
+# Print a message to indicate completion
+echo "Got prompt with file tree and concatenated file contents."
+echo "Files included in the prompt are:"
+echo "$file_tree"
+echo "The prompt has been copied to the clipboard."
+
+# Save the prompt to a file if the -f flag is specified
+if [ -n "$output_filename" ]; then
+    echo -e "$prompt" > "$output_filename"
+    echo "The prompt has been saved to $output_filename."
+fi
