@@ -11,7 +11,7 @@ Files and directories that are to be excluded can be listed in a .preludeignore 
 ## Install with Homebrew
 
 ```
-brew tap yourusername/prelude
+brew tap aerugo/prelude
 brew install prelude
 ```
 
