@@ -8,6 +8,13 @@ prelude [-p <relative_path>] [-f <output_filename>] [--help] [--manual]
 
 Files and directories that are to be excluded can be listed in a .preludeignore file in the directory where you run prelude. Prelude will also ignore anything in the .gitignore.
 
+## Install with Homebrew
+
+```
+brew tap yourusername/prelude
+brew install prelude
+```
+
 ### Options
 
 - `-p <relative_path>`: Specify a relative path to include only files below that path. If not specified, the script will include all files in the current directory and its subdirectories.
