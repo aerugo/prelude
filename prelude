@@ -192,6 +192,18 @@ file_tree=$(tree -fi --matchdirs --prune --ignore-case "$specified_path" ${exclu
 # Initialize an empty string to hold the concatenated file contents
 concatenated_files=""
 
+# Iterate over each line in the file tree output
+while IFS= read -r line; do
+    # Skip directories and non-files
+    if [ -f "$line" ]; then
+        # Check if the file is within the specified path
+        if [ -z "$specified_path" ] || [[ "$(realpath "$line")" == "$specified_path"* ]]; then
+            concatenated_files+="\n\n--- File: $line ---\n\n"
+            concatenated_files+="$(cat "$line")"
+        fi
+    fi
+done <<< "$file_tree"
+
 # Build the prompt with the file tree and concatenated file contents
 prompt="File Tree:\n$file_tree\n\nConcatenated Files:\n$concatenated_files"
 
