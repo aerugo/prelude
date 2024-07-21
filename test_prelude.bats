@@ -103,3 +103,21 @@ teardown() {
     [ "$status" -eq 1 ]
     [[ "$output" == *"Invalid option: Z"* ]]
 }
+
+@test "Script concatenates files" {
+    run ./prelude -P src -F output.txt
+    [ "$status" -eq 0 ]
+    [ -f output.txt ]
+    grep -q "Hello, world!" output.txt
+    grep -q "print('Hello')" output.txt
+    grep -q "function test() {}" output.txt
+}
+
+@test "Script concatenates files with -M flag" {
+    run ./prelude -P src -M "*.txt|*.py" -F output.txt
+    [ "$status" -eq 0 ]
+    [ -f output.txt ]
+    grep -q "Hello, world!" output.txt
+    grep -q "print('Hello')" output.txt
+    ! grep -q "function test() {}" output.txt
+}
