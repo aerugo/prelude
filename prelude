@@ -66,6 +66,14 @@ print_manual() {
     echo
 }
 
+# Initialize variables
+specified_path=""
+output_filename=""
+tree_pattern=""
+git_only=false
+case_sensitive=false
+exclude_patterns="prelude|.git|.preludeignore|.gitignore"
+
 # Function to check if a command exists
 command_exists() {
     command -v "$1" >/dev/null 2>&1
@@ -112,17 +120,15 @@ filter_files() {
     local file="$1"
     local match=false
 
-    # Enable case-insensitive matching only if not case sensitive
-    if [ "$case_sensitive" = false ]; then
-        shopt -s nocasematch
-    fi
-    
     if [ -n "$tree_pattern" ]; then
         IFS='|' read -ra patterns <<< "$tree_pattern"
         for pattern in "${patterns[@]}"; do
-            if [[ $file == $pattern ]]; then
-                match=true
-                break
+            if [ "$case_sensitive" = true ]; then
+                [[ "$file" == $pattern ]] && match=true && break
+            else
+                shopt -s nocasematch
+                [[ "$file" == $pattern ]] && match=true && break
+                shopt -u nocasematch
             fi
         done
     else
@@ -131,11 +137,6 @@ filter_files() {
     
     if [ "$match" = true ] && ( [ -z "$exclude_patterns" ] || ! [[ $file =~ $exclude_patterns ]] ); then
         echo "$file"
-    fi
-    
-    # Disable case-insensitive matching if it was enabled
-    if [ "$case_sensitive" = false ]; then
-        shopt -u nocasematch
     fi
 }
 
@@ -147,14 +148,6 @@ validate_pattern() {
         exit 1
     fi
 }
-
-# Initialize variables
-specified_path=""
-output_filename=""
-tree_pattern=""
-git_only=false
-case_sensitive=false
-exclude_patterns="prelude|.git|.preludeignore|.gitignore"
 
 # Parse command line arguments
 while getopts ":P:F:M:cgC-:" opt; do

@@ -289,6 +289,42 @@ teardown() {
     grep -q "Uncommitted change" output.txt
 }
 
+@test "Script respects case sensitivity with -M and -c flags" {
+    touch src/UPPERCASE.txt src/lowercase.txt
+    run ./prelude -M "*CASE.txt" -c -F output.txt
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"src/UPPERCASE.txt"* ]]
+    [[ "$output" != *"src/lowercase.txt"* ]]
+}
+
+@test "Script ignores case sensitivity with -M flag without -c flag" {
+    touch src/UPPERCASE.txt src/lowercase.txt
+    run ./prelude -M "*CASE.txt" -F output.txt
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"src/UPPERCASE.txt"* ]]
+    [[ "$output" == *"src/lowercase.txt"* ]]
+}
+
+@test "Script respects case sensitivity with -M, -c, and -g flags" {
+    touch src/UPPERCASE.txt src/lowercase.txt
+    git add src/UPPERCASE.txt src/lowercase.txt
+    git commit -m "Add case-sensitive files"
+    run ./prelude -M "*CASE.txt" -c -g -F output.txt
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"src/UPPERCASE.txt"* ]]
+    [[ "$output" != *"src/lowercase.txt"* ]]
+}
+
+@test "Script ignores case sensitivity with -M and -g flags without -c flag" {
+    touch src/UPPERCASE.txt src/lowercase.txt
+    git add src/UPPERCASE.txt src/lowercase.txt
+    git commit -m "Add case-sensitive files"
+    run ./prelude -M "*CASE.txt" -g -F output.txt
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"src/UPPERCASE.txt"* ]]
+    [[ "$output" == *"src/lowercase.txt"* ]]
+}
+
 @test "Script handles merge conflicts" {
     git checkout -b test-branch
     echo "Branch change" > src/test.txt
