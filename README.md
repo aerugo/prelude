@@ -64,8 +64,9 @@ This script generates a prompt containing the file tree and concatenated file co
 
 - `-P <relative_path>`: Specify a relative path to include only files below that path. If not specified, the script will include all files in the current directory and its subdirectories.
 - `-F <output_filename>`: Specify a filename to save the generated prompt. If not specified, the prompt will only be copied to the clipboard.
-- `-M <match_pattern>`: Specify pattern(s) to match filenames and only include those files.  Valid wildcard operators are '*' (any zero or more characters), '?' (any single character), '[...]' (any single character listed between brackets (optional - (dash) for character range may be used: ex: [A-Z]), and '[^...]' (any single character not listed in brackets) and '|' separates alternate patterns.
+- `-M <match_pattern>`: Specify pattern(s) to match filenames and only include those files. Patterns are case-insensitive by default.  Valid wildcard operators are '*' (any zero or more characters), '?' (any single character), '[...]' (any single character listed between brackets (optional - (dash) for character range may be used: ex: [A-Z]), and '[^...]' (any single character not listed in brackets) and '|' separates alternate patterns.
 - `-g`: Only include files tracked by git.
+- `-c`: Respect case sensitivity in pattern matching. 
 - `--help`: Display help information.
 - `--manual`: Display the manual.
 
