@@ -55,27 +55,20 @@ brew tap aerugo/prelude
 brew install prelude
 ```
 
-### Options
-
-- `-P <relative_path>`: Specify a relative path to include only files below that path. If not specified, the script will include all files in the current directory and its subdirectories.
-- `-F <output_filename>`: Specify a filename to save the generated prompt. If not specified, the prompt will only be copied to the clipboard.
-- `-M <match_pattern>`: Specify pattern(s) to match filenames and only include those files. Use '|' as a delimiter for multiple patterns.
-- `-g`: Only include files tracked by git.
-- `--help`: Display help information.
-- `--manual`: Display the manual.
-
 ### Manual
 
 This script generates a prompt containing the file tree and concatenated file contents of a specified directory. The prompt can be copied to the clipboard and optionally saved to a file.
+
 
 #### Options
 
 - `-P <relative_path>`: Specify a relative path to include only files below that path. If not specified, the script will include all files in the current directory and its subdirectories.
 - `-F <output_filename>`: Specify a filename to save the generated prompt. If not specified, the prompt will only be copied to the clipboard.
-- `-M <match_pattern>`: Specify pattern(s) to match filenames. Uses tree's pattern matching syntax. For multiple patterns, separate them with '|'. Use '*' for wildcards. The matching is case-insensitive by default.
-- `-g`: Only include files tracked by git. This option uses 'git ls-files' to determine which files to include in the prompt.
+- `-M <match_pattern>`: Specify pattern(s) to match filenames and only include those files.  Valid wildcard operators are '*' (any zero or more characters), '?' (any single character), '[...]' (any single character listed between brackets (optional - (dash) for character range may be used: ex: [A-Z]), and '[^...]' (any single character not listed in brackets) and '|' separates alternate patterns.
+- `-g`: Only include files tracked by git.
 - `--help`: Display help information.
 - `--manual`: Display the manual.
+
 
 #### Examples
 

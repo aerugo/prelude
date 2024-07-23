@@ -2,11 +2,12 @@
 
 # Function to print usage information
 print_usage() {
-    echo "Usage: $0 [-P <relative_path>] [-F <output_filename>] [-g] [--help] [--manual]"
+    echo "Usage: $0 [-P <relative_path>] [-F <output_filename>] [-g] [-c] [-M <match_pattern>] [--help] [--manual]"
     echo "  -P <relative_path>    Specify a relative path to include only files below that path"
     echo "  -F <output_filename>  Specify a filename to save the prompt"
     echo "  -M <match_pattern>    Specify pattern(s) to match filenames and only include those files. Use '|' as a delimiter for multiple patterns"
     echo "  -g                    Only include files tracked by git"
+    echo "  -c                    Respect case sensitivity in pattern matching"
     echo "  --help                Display help information"
     echo "  --manual              Display the manual"
 }
@@ -34,6 +35,9 @@ print_manual() {
     echo "  -g"
     echo "      Only include files tracked by git. This option uses 'git ls-files' to determine"
     echo "      which files to include in the prompt."
+    echo
+    echo "  -c"
+    echo "      Respect case sensitivity in pattern matching. By default, pattern matching is case-insensitive."
     echo
     echo "  --help"
     echo "      Display help information."
@@ -89,159 +93,134 @@ add_patterns_from_file() {
     local file="$1"
     if [ -f "$file" ]; then
         while IFS= read -r line || [[ -n "$line" ]]; do
-            # Remove leading and trailing whitespace
             line=$(echo "$line" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
-            
             if [[ ! "$line" =~ ^#.*$ ]] && [[ -n "$line" ]]; then
-                # Split the existing patterns into an array
                 IFS='|' read -ra existing_patterns <<< "$exclude_patterns"
-                
-                # Flag to check if the exact pattern already exists
-                local pattern_exists=false
-                
-                # Check if the exact pattern already exists
-                for pattern in "${existing_patterns[@]}"; do
-                    if [[ "$pattern" == "$line" ]]; then
-                        pattern_exists=true
-                        break
-                    fi
-                done
-                
-                # If the exact pattern doesn't exist, add it
-                if ! $pattern_exists; then
-                    if [[ -z "$exclude_patterns" ]]; then
-                        exclude_patterns="$line"
-                    else
-                        exclude_patterns+="|$line"
-                    fi
+                if ! [[ " ${existing_patterns[*]} " =~ " ${line} " ]]; then
+                    exclude_patterns=${exclude_patterns:+"$exclude_patterns|"}$line
                 fi
             fi
         done < "$file"
     fi
 }
+
+filter_files() {
+    local file="$1"
+    local match=false
+
+    # Enable case-insensitive matching only if not case sensitive
+    if [ "$case_sensitive" = false ]; then
+        shopt -s nocasematch
+    fi
+    
+    if [ -n "$tree_pattern" ]; then
+        IFS='|' read -ra patterns <<< "$tree_pattern"
+        for pattern in "${patterns[@]}"; do
+            if [[ $file == $pattern ]]; then
+                match=true
+                break
+            fi
+        done
+    else
+        match=true
+    fi
+    
+    if [ "$match" = true ] && ( [ -z "$exclude_patterns" ] || ! [[ $file =~ $exclude_patterns ]] ); then
+        echo "$file"
+    fi
+    
+    # Disable case-insensitive matching if it was enabled
+    if [ "$case_sensitive" = false ]; then
+        shopt -u nocasematch
+    fi
+}
+
+# Function to validate a pattern
+validate_pattern() {
+    local pattern="$1"
+    if [[ "$pattern" == *[\[\]]* ]]; then
+        echo "Error: Invalid pattern. Square brackets are not supported." >&2
+        exit 1
+    fi
+}
+
 # Initialize variables
 specified_path=""
 output_filename=""
 tree_pattern=""
 git_only=false
+case_sensitive=false
+exclude_patterns="prelude|.preludeignore|.gitignore"
 
 # Parse command line arguments
-while getopts ":P:F:M:g-:" opt; do
+while getopts ":P:F:M:cgC-:" opt; do
     case ${opt} in
-        P )
-            specified_path=$OPTARG
-            ;;
-        F )
-            output_filename=$OPTARG
-            ;;
-        M )
-            tree_pattern=$OPTARG
-            ;;
-        g )
-            git_only=true
-            ;;
+        P ) specified_path=$OPTARG ;;
+        F ) output_filename=$OPTARG ;;
+        M ) tree_pattern=$OPTARG ;;
+        c ) case_sensitive=true ;;
+        g ) git_only=true ;;
         - )
             case "${OPTARG}" in
-                help)
-                    print_usage
-                    exit 0
-                    ;;
-                manual)
-                    print_manual
-                    exit 0
-                    ;;
-                *)
-                    echo "Invalid option: --$OPTARG" 1>&2
-                    print_usage
-                    exit 1
-                    ;;
-            esac
-            ;;
-        \? )
-            echo "Invalid option: $OPTARG" 1>&2
-            print_usage
-            exit 1
-            ;;
-        : )
-            echo "Invalid option: $OPTARG requires an argument" 1>&2
-            print_usage
-            exit 1
-            ;;
+                help) print_usage; exit 0 ;;
+                manual) print_manual; exit 0 ;;
+                *) echo "Invalid option: --$OPTARG" 1>&2; print_usage; exit 1 ;;
+            esac ;;
+        \? ) echo "Invalid option: $OPTARG" 1>&2; print_usage; exit 1 ;;
+        : ) echo "Invalid option: $OPTARG requires an argument" 1>&2; print_usage; exit 1 ;;
     esac
 done
 
-# Check if the specified path exists relative to the current directory
-if [ -n "$specified_path" ]; then
-    if [ ! -d "$specified_path" ]; then
-        echo "Error: The specified path '$specified_path' does not exist or is not a directory."
-        exit 1
-    fi
-    # Convert to absolute path for later comparison
-    specified_path=$(realpath "$specified_path")
-else
-    specified_path=$(realpath .)
+# Check if the repository is a git repo if the git_only option is used
+if $git_only && [ ! -d ".git" ]; then
+    echo "Error: The specified path is not a git repository" 1>&2
+    exit 1
 fi
 
-# Define the patterns to exclude
-exclude_patterns="prelude|.preludeignore|.gitignore"
+# Check if the specified path exists
+specified_path=${specified_path:-.}
+if [ ! -d "$specified_path" ]; then
+    echo "Error: The specified path '$specified_path' does not exist or is not a directory."
+    exit 1
+fi
+specified_path=$(realpath "$specified_path")
 
-# Call the function for .gitignore
+# Add patterns from .gitignore and .preludeignore
 add_patterns_from_file ".gitignore"
-
-# Call the function for .preludeignore
 add_patterns_from_file ".preludeignore"
+exclude_patterns+="|prelude"
 
-# add "|prelude" to end of exclude_patterns
-exclude_patterns+="|prelude"  # for some reason we need to add a final pattern to the end of the exclude_patterns, need to investigate why
-
-
-# Get the file tree excluding specific patterns
-
+# Get the file tree
 if [ "$git_only" = true ]; then
-    file_list=$(git ls-tree --full-tree --name-only -r HEAD "$specified_path")
-    file_tree=$(echo "$file_list" | tree -fi --fromfile ${exclude_patterns:+-I "\"$exclude_patterns\""} ${tree_pattern:+-P "$tree_pattern"})
-    # echo entire command for debugging
-    # echo "git ls-tree --full-tree --name-only -r HEAD | tree -fi --fromfile ${exclude_patterns:+-I "\"$exclude_patterns\""} ${tree_pattern:+-P "$tree_pattern"}"
+    all_files=$(git ls-files "$specified_path")
+    filtered_files=$(echo "$all_files" | while read -r file; do filter_files "$file"; done)
+    file_tree=$(echo "$filtered_files" | tree -fia $([ "$case_sensitive" = false ] && echo "--ignore-case") --fromfile)
 else
-    file_tree=$(tree -fi --matchdirs --prune --ignore-case "$specified_path" ${exclude_patterns:+-I "\"$exclude_patterns\""} ${tree_pattern:+-P "$tree_pattern"})
-    # echo entire command for debugging
-    # echo "tree -fi --matchdirs --prune --ignore-case \"$specified_path\" ${exclude_patterns:+-I "\"$exclude_patterns\""} ${tree_pattern:+-P "$tree_pattern"}"
+    file_tree=$(tree -fia --matchdirs --prune $([ "$case_sensitive" = false ] && echo "--ignore-case") "$specified_path" ${exclude_patterns:+-I "\"$exclude_patterns\""} ${tree_pattern:+-P "$tree_pattern"})
 fi
 
-
-# Initialize an empty string to hold the concatenated file contents
+# Concatenate file contents
 concatenated_files=""
-
-# Iterate over each line in the file tree output
 while IFS= read -r line; do
-    # Skip directories and non-files
-    if [ -f "$line" ]; then
-        # Check if the file is within the specified path
-        if [ -z "$specified_path" ] || [[ "$(realpath "$line")" == "$specified_path"* ]]; then
-            concatenated_files+="\n\n--- File: $line ---\n\n"
-            concatenated_files+="$(cat "$line")"
-        fi
+    if [ -f "$line" ] && [[ "$(realpath "$line")" == "$specified_path"* ]]; then
+        concatenated_files+="\n\n--- File: $line ---\n\n$(cat "$line")"
     fi
 done <<< "$file_tree"
 
-# Build the prompt with the file tree and concatenated file contents
-prompt="File Tree:\n$file_tree\n\nConcatenated Files:\n$concatenated_files"
-
+# Build the prompt
 prompt_pretext="I want you to help me fix some issues with my code. I have attached the code and file structure."
-
-# Add the pretext to the prompt
-prompt="$prompt_pretext\n\n$prompt"
+prompt="$prompt_pretext\n\nFile Tree:\n$file_tree\n\nConcatenated Files:\n$concatenated_files"
 
 # Copy the prompt to clipboard
 copy_to_clipboard "$prompt"
 
-# Print a message to indicate completion
+# Print completion message
 echo "Got prompt with file tree and concatenated file contents."
 echo "Files included in the prompt are:"
 echo "$file_tree"
 echo "The prompt has been copied to the clipboard."
 
-# Save the prompt to a file if the -F flag is specified
+# Save the prompt to a file if specified
 if [ -n "$output_filename" ]; then
     echo -e "$prompt" > "$output_filename"
     echo "The prompt has been saved to $output_filename."

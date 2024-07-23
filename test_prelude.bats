@@ -190,3 +190,151 @@ teardown() {
     #grep -q "function test() {}" output.txt
     #! grep -q "This file is not tracked" output.txt
 }
+
+
+@test "Script handles empty files" {
+    touch src/empty.txt
+    run ./prelude -P src -F output.txt
+    [ "$status" -eq 0 ]
+    [ -f output.txt ]
+    [[ "$output" == *"src/empty.txt"* ]]
+}
+
+@test "Script handles files with special characters" {
+    touch "src/file with spaces.txt"
+    touch "src/file_with_ñöñ_ÄßÇÌÍ_chars.txt"
+    run ./prelude -P src -F output.txt
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"src/file with spaces.txt"* ]]
+    [[ "$output" == *"src/file_with_ñöñ_ÄßÇÌÍ_chars.txt"* ]]
+}
+
+@test "Script handles deeply nested directories" {
+    mkdir -p src/level1/level2/level3/level4/level5
+    touch src/level1/level2/level3/level4/level5/deep_file.txt
+    run ./prelude -P src -F output.txt
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"src/level1/level2/level3/level4/level5/deep_file.txt"* ]]
+}
+
+@test "Script handles symlinks" {
+    ln -s src/test.txt src/symlink.txt
+    mkdir src/symlink_dir
+    ln -s src/symlink_dir src/symlink_to_dir
+    run ./prelude -F output.txt
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"src/symlink.txt"* ]]
+    [[ "$output" == *"src/symlink_to_dir"* ]]
+}
+
+@test "Script handles multiple -P flags" {
+    mkdir other_src
+    touch other_src/other_file.txt
+    run ./prelude -P src -P other_src -F output.txt
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"src/test.txt"* ]]
+    [[ "$output" == *"other_src/other_file.txt"* ]]
+}
+
+@test "Script handles mix of binary and text files" {
+    dd if=/dev/urandom of=src/binary_file.bin bs=1024 count=1
+    run ./prelude -P src -F output.txt
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"src/binary_file.bin"* ]]
+    [[ "$output" == *"src/test.txt"* ]]
+}
+
+@test "Script handles files without extensions" {
+    touch src/no_extension
+    run ./prelude -P src -F output.txt
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"src/no_extension"* ]]
+}
+
+@test "Script handles hidden files and directories" {
+    touch src/.hidden_file
+    mkdir src/.hidden_dir
+    touch src/.hidden_dir/file.txt
+    run ./prelude -P src -F output.txt
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"src/.hidden_file"* ]]
+    [[ "$output" == *"src/.hidden_dir/file.txt"* ]]
+}
+
+@test "Script handles hidden files and directories with -g flag" {
+    touch src/.hidden_file
+    mkdir src/.hidden_dir
+    touch src/.hidden_dir/file.txt
+    git add src/.hidden_file
+    git add src/.hidden_dir/file.txt
+    git commit -m "Add hidden files"
+    run ./prelude -g -F output.txt
+    echo "Listing files:"
+    ls -a src
+    echo "Listing git files:"
+    git ls-files .
+    echo "Output:"
+    cat output.txt
+    echo "End of output"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"src/.hidden_file"* ]]
+    [[ "$output" == *"src/.hidden_dir/file.txt"* ]]
+}
+
+@test "Script handles non-git repository with -g flag" {
+    mkdir non_git_repo
+    cd non_git_repo
+    run ../prelude -g
+    [ "$status" -ne 0 ]
+    [[ "$output" == *"error"* ]]
+    cd ..
+}
+
+@test "Script handles uncommitted changes with -g flag" {
+    echo "Uncommitted change" >> src/test.txt
+    run ./prelude -g -F output.txt
+    [ "$status" -eq 0 ]
+    grep -q "Uncommitted change" output.txt
+}
+
+@test "Script handles merge conflicts" {
+    git checkout -b test-branch
+    echo "Branch change" > src/test.txt
+    git add src/test.txt
+    git commit -m "Branch commit"
+    git checkout main
+    echo "Main change" > src/test.txt
+    git add src/test.txt
+    git commit -m "Main commit"
+    git merge test-branch || true  # Allow merge to fail
+    run ./prelude -g -F output.txt
+    [ "$status" -eq 0 ]
+    grep -q "<<<<<<< HEAD" output.txt
+}
+
+@test "Script handles very long file paths" {
+    long_path="src"
+    for i in {1..50}; do
+        long_path="${long_path}/subdir_${i}"
+    done
+    mkdir -p "$long_path"
+    touch "${long_path}/long_path_file.txt"
+    run ./prelude -P src -F output.txt
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"${long_path}/long_path_file.txt"* ]]
+}
+
+@test "Script handles concurrent executions" {
+    run_concurrent() {
+        ./prelude -F "output_$1.txt" &
+    }
+    run_concurrent 1
+    run_concurrent 2
+    run_concurrent 3
+    wait
+    [ -f "output_1.txt" ]
+    [ -f "output_2.txt" ]
+    [ -f "output_3.txt" ]
+    cmp --silent "output_1.txt" "output_2.txt" && \
+    cmp --silent "output_2.txt" "output_3.txt"
+}
