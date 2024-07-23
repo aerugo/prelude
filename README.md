@@ -16,9 +16,9 @@ Files and directories that are to be excluded can be listed in a `.preludeignore
 $ prelude -M "*.md|*test*" -F prompt.txt
 Got prompt with file tree and concatenated file contents.
 Files included in the prompt are:
-/Users/hugi/GitRepos/prelude
-/Users/hugi/GitRepos/prelude/README.md
-/Users/hugi/GitRepos/prelude/test_prelude.bats
+~/prelude
+~/prelude/README.md
+~/prelude/test_prelude.bats
 
 1 directory, 2 files
 The prompt has been copied to the clipboard.
