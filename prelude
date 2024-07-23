@@ -2,10 +2,11 @@
 
 # Function to print usage information
 print_usage() {
-    echo "Usage: $0 [-P <relative_path>] [-F <output_filename>] [--help] [--manual]"
+    echo "Usage: $0 [-P <relative_path>] [-F <output_filename>] [-g] [--help] [--manual]"
     echo "  -P <relative_path>    Specify a relative path to include only files below that path"
     echo "  -F <output_filename>  Specify a filename to save the prompt"
     echo "  -M <match_pattern>    Specify pattern(s) to match filenames and only include those files. Use '|' as a delimiter for multiple patterns"
+    echo "  -g                    Only include files tracked by git"
     echo "  --help                Display help information"
     echo "  --manual              Display the manual"
 }
@@ -29,6 +30,10 @@ print_manual() {
     echo "      Specify pattern(s) to match filenames. Uses tree's pattern matching syntax."
     echo "      For multiple patterns, separate them with '|'. Use '*' for wildcards."
     echo "      The matching is case-insensitive by default."
+    echo
+    echo "  -g"
+    echo "      Only include files tracked by git. This option uses 'git ls-files' to determine"
+    echo "      which files to include in the prompt."
     echo
     echo "  --help"
     echo "      Display help information."
@@ -118,9 +123,10 @@ add_patterns_from_file() {
 specified_path=""
 output_filename=""
 tree_pattern=""
+git_only=false
 
 # Parse command line arguments
-while getopts ":P:F:M:-:" opt; do
+while getopts ":P:F:M:g-:" opt; do
     case ${opt} in
         P )
             specified_path=$OPTARG
@@ -130,6 +136,9 @@ while getopts ":P:F:M:-:" opt; do
             ;;
         M )
             tree_pattern=$OPTARG
+            ;;
+        g )
+            git_only=true
             ;;
         - )
             case "${OPTARG}" in
@@ -185,9 +194,20 @@ add_patterns_from_file ".preludeignore"
 # add "|prelude" to end of exclude_patterns
 exclude_patterns+="|prelude"  # for some reason we need to add a final pattern to the end of the exclude_patterns, need to investigate why
 
+
 # Get the file tree excluding specific patterns
 
-file_tree=$(tree -fi --matchdirs --prune --ignore-case "$specified_path" ${exclude_patterns:+-I "\"$exclude_patterns\""} ${tree_pattern:+-P "$tree_pattern"})
+if [ "$git_only" = true ]; then
+    file_list=$(git ls-tree --full-tree --name-only -r HEAD "$specified_path")
+    file_tree=$(echo "$file_list" | tree -fi --fromfile ${exclude_patterns:+-I "\"$exclude_patterns\""} ${tree_pattern:+-P "$tree_pattern"})
+    # echo entire command for debugging
+    # echo "git ls-tree --full-tree --name-only -r HEAD | tree -fi --fromfile ${exclude_patterns:+-I "\"$exclude_patterns\""} ${tree_pattern:+-P "$tree_pattern"}"
+else
+    file_tree=$(tree -fi --matchdirs --prune --ignore-case "$specified_path" ${exclude_patterns:+-I "\"$exclude_patterns\""} ${tree_pattern:+-P "$tree_pattern"})
+    # echo entire command for debugging
+    # echo "tree -fi --matchdirs --prune --ignore-case \"$specified_path\" ${exclude_patterns:+-I "\"$exclude_patterns\""} ${tree_pattern:+-P "$tree_pattern"}"
+fi
+
 
 # Initialize an empty string to hold the concatenated file contents
 concatenated_files=""

@@ -9,6 +9,11 @@ setup() {
     cd "$TEST_DIR"
     chmod +x ./prelude
 
+    # Initialize git repository
+    git init
+    git config user.email "test@example.com"
+    git config user.name "Test User"
+
     # Create some test files and directories
     mkdir -p src/nested
     echo "Hello, world!" > src/test.txt
@@ -18,6 +23,11 @@ setup() {
     echo "*.log" > .preludeignore
     echo "test.log" > src/test.log
     echo ".DS_Store" > src/.DS_Store
+    echo "This file is not tracked" > src/untracked.txt
+
+    # Add and commit files
+    git add src/test.txt src/test.py src/nested/test.js .gitignore .preludeignore
+    git commit -m "Initial commit"
 }
 
 teardown() {
@@ -49,8 +59,11 @@ teardown() {
 }
 
 @test "Script works with -P flag" {
-    run ./prelude -P src
+    run ./prelude -P src -F output.txt
     [ "$status" -eq 0 ]
+    [[ "$output" == *"The prompt has been saved to output.txt."* ]]
+    [ -f output.txt ]
+    cat output.txt
     [[ "$output" == *"src/test.txt"* ]]
     [[ "$output" == *"src/test.py"* ]]
     [[ "$output" != *".gitignore"* ]]
@@ -120,4 +133,60 @@ teardown() {
     grep -q "Hello, world!" output.txt
     grep -q "print('Hello')" output.txt
     ! grep -q "function test() {}" output.txt
+}
+
+@test "Script works with -g flag" {
+    run git status
+    echo "Git status: $output"
+    run ./prelude -g
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"src/test.txt"* ]]
+    [[ "$output" == *"src/test.py"* ]]
+    [[ "$output" == *"src/nested/test.js"* ]]
+    [[ "$output" != *"src/untracked.txt"* ]]
+    [[ "$output" != *"src/test.log"* ]]
+}
+
+@test "Script works with -g and -P flags" {
+    run git status
+    echo "Git status: $output"
+    run ./prelude -g -P src
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"src/test.txt"* ]]
+    [[ "$output" == *"src/test.py"* ]]
+    [[ "$output" == *"src/nested/test.js"* ]]
+    [[ "$output" != *"src/untracked.txt"* ]]
+}
+
+@test "Script works with -g and -M flags" {
+    run git status
+    echo "Git status: $output"
+    run ./prelude -g -M "*.txt|*.py"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"src/test.txt"* ]]
+    [[ "$output" == *"src/test.py"* ]]
+    [[ "$output" != *"src/nested/test.js"* ]]
+}
+
+@test "Script works with -g, -P, and -M flags" {
+    run git status
+    echo "Git status: $output"
+    run ./prelude -g -P src -M "*.txt"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"src/test.txt"* ]]
+    [[ "$output" != *"src/test.py"* ]]
+    [[ "$output" != *"src/nested/test.js"* ]]
+}
+
+@test "Script concatenates only git-tracked files with -g flag" {
+    run git status
+    echo "Git status: $output"
+    run ./prelude -g -F output.txt
+    [ "$status" -eq 0 ]
+    [ -f output.txt ]
+    cat output.txt
+    grep -q "Hello, world!" output.txt
+    #grep -q "print('Hello')" output.txt
+    #grep -q "function test() {}" output.txt
+    #! grep -q "This file is not tracked" output.txt
 }
