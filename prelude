@@ -95,6 +95,10 @@ add_patterns_from_file() {
         while IFS= read -r line || [[ -n "$line" ]]; do
             line=$(echo "$line" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
             if [[ ! "$line" =~ ^#.*$ ]] && [[ -n "$line" ]]; then
+                # if line starts with /, remove it
+                if [[ "$line" == /* ]]; then
+                    line=${line:1}
+                fi
                 IFS='|' read -ra existing_patterns <<< "$exclude_patterns"
                 if ! [[ " ${existing_patterns[*]} " =~ " ${line} " ]]; then
                     exclude_patterns=${exclude_patterns:+"$exclude_patterns|"}$line
@@ -150,7 +154,7 @@ output_filename=""
 tree_pattern=""
 git_only=false
 case_sensitive=false
-exclude_patterns="prelude|.preludeignore|.gitignore"
+exclude_patterns="prelude|.git|.preludeignore|.gitignore"
 
 # Parse command line arguments
 while getopts ":P:F:M:cgC-:" opt; do

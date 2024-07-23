@@ -186,11 +186,10 @@ teardown() {
     [ -f output.txt ]
     cat output.txt
     grep -q "Hello, world!" output.txt
-    #grep -q "print('Hello')" output.txt
-    #grep -q "function test() {}" output.txt
-    #! grep -q "This file is not tracked" output.txt
+    grep -q "print('Hello')" output.txt
+    grep -q "function test() {}" output.txt
+    ! grep -q "This file is not tracked" output.txt
 }
-
 
 @test "Script handles empty files" {
     touch src/empty.txt
@@ -269,13 +268,6 @@ teardown() {
     git add src/.hidden_dir/file.txt
     git commit -m "Add hidden files"
     run ./prelude -g -F output.txt
-    echo "Listing files:"
-    ls -a src
-    echo "Listing git files:"
-    git ls-files .
-    echo "Output:"
-    cat output.txt
-    echo "End of output"
     [ "$status" -eq 0 ]
     [[ "$output" == *"src/.hidden_file"* ]]
     [[ "$output" == *"src/.hidden_dir/file.txt"* ]]
