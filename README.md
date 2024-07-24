@@ -31,7 +31,6 @@ The prompt has been saved to prompt.txt.
 I want you to help me fix some issues with my code. I have attached the code and file structure.
 
 File Tree:
-~/prelude
 ~/README.md
 ~/test_prelude.bats
 
