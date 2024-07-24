@@ -65,8 +65,10 @@ command_exists() {
 # Function to copy to clipboard
 copy_to_clipboard() {
     local prompt="$1"
-    if command_exists pbcopy; then
+    if command_exists pbcopy; then	
         echo -e "$prompt" | pbcopy
+    elif command_exists wl-copy; then
+	echo -e "$prompt" | wl-copy
     elif command_exists xclip; then
         echo -e "$prompt" | xclip -selection clipboard
     elif command_exists xsel; then
