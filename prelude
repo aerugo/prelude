@@ -2,68 +2,68 @@
 
 # Function to print usage information
 print_usage() {
-    echo "Usage: $0 [-P <relative_path>] [-F <output_filename>] [-g] [-c] [-M <match_pattern>] [--help] [--manual]"
-    echo "  -P <relative_path>    Specify a relative path to include only files below that path"
-    echo "  -F <output_filename>  Specify a filename to save the prompt"
-    echo "  -M <match_pattern>    Specify pattern(s) to match filenames and only include those files. Use '|' as a delimiter for multiple patterns"
-    echo "  -g                    Only include files tracked by git"
-    echo "  -c                    Respect case sensitivity in pattern matching"
-    echo "  --help                Display help information"
-    echo "  --manual              Display the manual"
+    echo >/dev/stderr "Usage: $0 [-P <relative_path>] [-F <output_filename>] [-g] [-c] [-M <match_pattern>] [--help] [--manual]"
+    echo >/dev/stderr "  -P <relative_path>    Specify a relative path to include only files below that path"
+    echo >/dev/stderr "  -F <output_filename>  Specify a filename to save the prompt"
+    echo >/dev/stderr "  -M <match_pattern>    Specify pattern(s) to match filenames and only include those files. Use '|' as a delimiter for multiple patterns"
+    echo >/dev/stderr "  -g                    Only include files tracked by git"
+    echo >/dev/stderr "  -c                    Respect case sensitivity in pattern matching"
+    echo >/dev/stderr "  --help                Display help information"
+    echo >/dev/stderr "  --manual              Display the manual"
 }
 
 # Function to print manual
 print_manual() {
-    echo "MANUAL"
-    echo "This script generates a prompt containing the file tree and concatenated file contents of a specified directory."
-    echo "The prompt can be copied to the clipboard and optionally saved to a file."
-    echo
-    echo "OPTIONS"
-    echo "  -P <relative_path>"
-    echo "      Specify a relative path to include only files below that path."
-    echo "      If not specified, the script will include all files in the current directory and its subdirectories."
-    echo
-    echo "  -F <output_filename>"
-    echo "      Specify a filename to save the generated prompt."
-    echo "      If not specified, the prompt will only be copied to the clipboard."
-    echo
-    echo "  -M <match_pattern>"
-    echo "      Specify pattern(s) to match filenames. Uses tree's pattern matching syntax."
-    echo "      For multiple patterns, separate them with '|'. Use '*' for wildcards."
-    echo "      The matching is case-insensitive by default."
-    echo
-    echo "  -g"
-    echo "      Only include files tracked by git. This option uses 'git ls-files' to determine"
-    echo "      which files to include in the prompt."
-    echo
-    echo "  -c"
-    echo "      Respect case sensitivity in pattern matching. By default, pattern matching is case-insensitive."
-    echo
-    echo "  --help"
-    echo "      Display help information."
-    echo
-    echo "  --manual"
-    echo "      Display the manual."
-    echo
-    echo "EXAMPLES"
-    echo "  $0"
-    echo "      Generate a prompt for all files in the current directory and copy it to the clipboard."
-    echo
-    echo "  $0 -P src"
-    echo "      Generate a prompt for all files below the specified path and copy it to the clipboard."
-    echo
-    echo "  $0 -F prompt.txt"
-    echo "      Generate a prompt for all files in the current directory and save it to a file."
-    echo
-    echo "  $0 -P src -f prompt.txt"
-    echo "      Generate a prompt for all files below the specified path and save it to a file."
-    echo
-    echo "  $0 -M \"*.txt|*.py\""
-    echo "      Generate a prompt for all .txt and .py files."
-    echo
-    echo "  $0 -M \"test*\""
-    echo "      Generate a prompt for all files starting with 'test'."
-    echo
+    echo >/dev/stderr "MANUAL"
+    echo >/dev/stderr "This script generates a prompt containing the file tree and concatenated file contents of a specified directory."
+    echo >/dev/stderr "The prompt can be copied to the clipboard and optionally saved to a file."
+    echo >/dev/stderr
+    echo >/dev/stderr "OPTIONS"
+    echo >/dev/stderr "  -P <relative_path>"
+    echo >/dev/stderr "      Specify a relative path to include only files below that path."
+    echo >/dev/stderr "      If not specified, the script will include all files in the current directory and its subdirectories."
+    echo >/dev/stderr
+    echo >/dev/stderr "  -F <output_filename>"
+    echo >/dev/stderr "      Specify a filename to save the generated prompt."
+    echo >/dev/stderr "      If not specified, the prompt will only be copied to the clipboard."
+    echo >/dev/stderr
+    echo >/dev/stderr "  -M <match_pattern>"
+    echo >/dev/stderr "      Specify pattern(s) to match filenames. Uses tree's pattern matching syntax."
+    echo >/dev/stderr "      For multiple patterns, separate them with '|'. Use '*' for wildcards."
+    echo >/dev/stderr "      The matching is case-insensitive by default."
+    echo >/dev/stderr
+    echo >/dev/stderr "  -g"
+    echo >/dev/stderr "      Only include files tracked by git. This option uses 'git ls-files' to determine"
+    echo >/dev/stderr "      which files to include in the prompt."
+    echo >/dev/stderr
+    echo >/dev/stderr "  -c"
+    echo >/dev/stderr "      Respect case sensitivity in pattern matching. By default, pattern matching is case-insensitive."
+    echo >/dev/stderr
+    echo >/dev/stderr "  --help"
+    echo >/dev/stderr "      Display help information."
+    echo >/dev/stderr
+    echo >/dev/stderr "  --manual"
+    echo >/dev/stderr "      Display the manual."
+    echo >/dev/stderr
+    echo >/dev/stderr "EXAMPLES"
+    echo >/dev/stderr "  $0"
+    echo >/dev/stderr "      Generate a prompt for all files in the current directory and copy it to the clipboard."
+    echo >/dev/stderr
+    echo >/dev/stderr "  $0 -P src"
+    echo >/dev/stderr "      Generate a prompt for all files below the specified path and copy it to the clipboard."
+    echo >/dev/stderr
+    echo >/dev/stderr "  $0 -F prompt.txt"
+    echo >/dev/stderr "      Generate a prompt for all files in the current directory and save it to a file."
+    echo >/dev/stderr
+    echo >/dev/stderr "  $0 -P src -f prompt.txt"
+    echo >/dev/stderr "      Generate a prompt for all files below the specified path and save it to a file."
+    echo >/dev/stderr
+    echo >/dev/stderr "  $0 -M \"*.txt|*.py\""
+    echo >/dev/stderr "      Generate a prompt for all .txt and .py files."
+    echo >/dev/stderr
+    echo >/dev/stderr "  $0 -M \"test*\""
+    echo >/dev/stderr "      Generate a prompt for all files starting with 'test'."
+    echo >/dev/stderr
 }
 
 # Initialize variables
@@ -144,7 +144,7 @@ filter_files() {
 validate_pattern() {
     local pattern="$1"
     if [[ "$pattern" == *[\[\]]* ]]; then
-        echo "Error: Invalid pattern. Square brackets are not supported." >&2
+        echo >/dev/stderr "Error: Invalid pattern. Square brackets are not supported." >&2
         exit 1
     fi
 }
@@ -161,23 +161,23 @@ while getopts ":P:F:M:cgC-:" opt; do
             case "${OPTARG}" in
                 help) print_usage; exit 0 ;;
                 manual) print_manual; exit 0 ;;
-                *) echo "Invalid option: --$OPTARG" 1>&2; print_usage; exit 1 ;;
+                *) echo >/dev/stderr "Invalid option: --$OPTARG" 1>&2; print_usage; exit 1 ;;
             esac ;;
-        \? ) echo "Invalid option: $OPTARG" 1>&2; print_usage; exit 1 ;;
-        : ) echo "Invalid option: $OPTARG requires an argument" 1>&2; print_usage; exit 1 ;;
+        \? ) echo >/dev/stderr "Invalid option: $OPTARG" 1>&2; print_usage; exit 1 ;;
+        : ) echo >/dev/stderr "Invalid option: $OPTARG requires an argument" 1>&2; print_usage; exit 1 ;;
     esac
 done
 
 # Check if the repository is a git repo if the git_only option is used
 if $git_only && [ ! -d ".git" ]; then
-    echo "Error: The specified path is not a git repository" 1>&2
+    echo >/dev/stderr "Error: The specified path is not a git repository" 1>&2
     exit 1
 fi
 
 # Check if the specified path exists
 specified_path=${specified_path:-.}
 if [ ! -d "$specified_path" ]; then
-    echo "Error: The specified path '$specified_path' does not exist or is not a directory."
+    echo >/dev/stderr "Error: The specified path '$specified_path' does not exist or is not a directory."
     exit 1
 fi
 specified_path=$(realpath "$specified_path")
@@ -212,13 +212,13 @@ prompt="$prompt_pretext\n\nFile Tree:\n$file_tree\n\nConcatenated Files:\n$conca
 copy_to_clipboard "$prompt"
 
 # Print completion message
-echo "Got prompt with file tree and concatenated file contents."
-echo "Files included in the prompt are:"
-echo "$file_tree"
-echo "The prompt has been copied to the clipboard."
+echo >/dev/stderr "Got prompt with file tree and concatenated file contents."
+echo >/dev/stderr "Files included in the prompt are:"
+echo >/dev/stderr "$file_tree"
+echo >/dev/stderr "The prompt has been copied to the clipboard."
 
 # Save the prompt to a file if specified
 if [ -n "$output_filename" ]; then
     echo -e "$prompt" > "$output_filename"
-    echo "The prompt has been saved to $output_filename."
+    echo >/dev/stderr "The prompt has been saved to $output_filename."
 fi
