@@ -90,9 +90,8 @@ copy_to_clipboard() {
         echo -e "$prompt" | xsel --clipboard --input
     elif command_exists clip; then
         echo -e "$prompt" | clip
-    else
-        echo "Error: No clipboard command found. Install pbcopy, xclip, xsel, or clip."
-        exit 1
+    elif [ -z "$output_filename" ]; then
+        echo -e "$prompt"
     fi
 }
 
