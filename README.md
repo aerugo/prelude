@@ -1,6 +1,6 @@
 ## Prelude
 
-Prelude is an extremely simple tool to help you make context prompts for LLMs with long context windows. It is useful when using LLMs to improve code that is distributed over multiple files and directories. Prelude generates a prompt containing the file tree and concatenated file contents of a specified directory. The prompt is automatically copied to the clipboard and optionally saved to a file.
+Prelude is an extremely simple tool to help you make context prompts for LLMs with long context windows. It is useful when using LLMs to improve code that is distributed over multiple files and directories. Prelude generates a prompt containing the file tree and concatenated file contents of a specified directory. The prompt is automatically copied to the clipboard and optionally saved to a file. On systems without a clipboard, the prompt is printed to stdout and optionally saved to a file.
 
 ### Usage
 
@@ -84,7 +84,7 @@ This script generates a prompt containing the file tree and concatenated file co
 
 ### Notes
 
-- The script checks for the presence of clipboard commands (`pbcopy`, `xclip`, `xsel`, `clip`, `wl-copy`) and uses the first one found to copy the prompt to the clipboard. If none are found, an error is displayed.
+- The script checks for the presence of clipboard commands (pbcopy, xclip, xsel, clip, wl-copy) and uses the first one found to copy the prompt to the clipboard. If none are found and no output file is specified, the prompt is printed to stdout.
 - The script reads `.gitignore` and `.preludeignore` files to exclude specified patterns from the file tree.
 
 ### Dependencies
@@ -95,7 +95,8 @@ This script generates a prompt containing the file tree and concatenated file co
 ### Error Handling
 
 - If the specified path does not exist or is not a directory, an error message is displayed, and the script exits.
-- If no clipboard command is found, an error message is displayed, and the script exits.
+- If no clipboard command is found and no output file is specified, the prompt is printed to stdout.
+- If no clipboard command is found and an output file is specified, the prompt is saved to the file without copying to the clipboard.
 
 ### Completion
 
