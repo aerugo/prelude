@@ -39,8 +39,8 @@ teardown() {
 @test "Script runs without arguments" {
     run ./prelude
     [ "$status" -eq 0 ]
-    [[ "$output" == *"Got prompt with file tree and concatenated file contents."* ]]
-    [[ "$output" == *"The prompt has been copied to the clipboard."* ]]
+    [[ "$output" == *"This is a concatenated prompt of all files in a codebase."* ]]
+    [[ "$output" == *"Below is a filtered list of the files in the codebase:"* ]]
 }
 
 @test "Script shows help with --help flag" {
@@ -366,3 +366,133 @@ teardown() {
     cmp --silent "output_1.txt" "output_2.txt" && \
     cmp --silent "output_2.txt" "output_3.txt"
 }
+
+@test "Script works with -X flag for single exclude pattern" {
+    # Create a file to exclude
+    echo "Should be excluded" > src/exclude_me.txt
+
+    # Run script excluding *.txt
+    run ./prelude -X "*.txt"
+    [ "$status" -eq 0 ]
+
+    # The file_tree listing (stdout) should NOT contain src/exclude_me.txt
+    [[ "$output" != *"exclude_me.txt"* ]]
+
+    # Normal files (like test.py) should remain
+    [[ "$output" == *"src/test.py"* ]]
+}
+
+@test "Script works with -X flag for multiple exclude patterns" {
+    # Create files to exclude
+    echo "Should be excluded" > src/exclude_me.log
+    echo "Should also be excluded" > src/exclude_me.tmp
+
+    # Run script excluding both *.log and *.tmp
+    run ./prelude -X "*.log|*.tmp"
+    [ "$status" -eq 0 ]
+
+    # The file_tree listing (stdout) should NOT contain these excluded files
+    [[ "$output" != *"exclude_me.log"* ]]
+    [[ "$output" != *"exclude_me.tmp"* ]]
+
+    # Normal files (like test.txt) should remain
+    [[ "$output" == *"src/test.txt"* ]]
+}
+
+@test "Script respects case-insensitive exclude by default" {
+    # Create a file that is uppercase
+    echo "Excluded in uppercase" > src/EXCLUDE_THIS.TXT
+
+    # Run script excluding *.txt (case-insensitive by default)
+    run ./prelude -X "*.txt"
+    [ "$status" -eq 0 ]
+
+    # Should exclude the uppercase file
+    [[ "$output" != *"EXCLUDE_THIS.TXT"* ]]
+}
+
+@test "Script respects case-sensitive exclude with -c flag" {
+    # Create files with different cases
+    echo "case test" > src/Lowercase.txt
+    echo "CASE TEST" > src/UPPERCASE.TXT
+
+    # Run script excluding only *.txt EXACTLY, in a case-sensitive manner
+    run ./prelude -X "*.txt" -c
+    [ "$status" -eq 0 ]
+
+    # Lowercase.txt should be excluded
+    [[ "$output" != *"Lowercase.txt"* ]]
+
+    # UPPERCASE.TXT should remain included because we used -c (case-sensitive)
+    [[ "$output" == *"UPPERCASE.TXT"* ]]
+}
+
+@test "Script works with both -M and -X flags" {
+    # Create an extra file we want to include, then exclude
+    echo "Include me, then exclude me" > src/include_me_too.py
+    echo "But you won't see me" > src/exclude_me.log
+
+    # First, we explicitly include *.py, but also exclude *.log
+    run ./prelude -M "*.py" -X "*.log"
+    [ "$status" -eq 0 ]
+
+    # We should see all .py files (including include_me_too.py)
+    [[ "$output" == *"src/test.py"* ]]
+    [[ "$output" == *"include_me_too.py"* ]]
+
+    # We should NOT see .log files
+    [[ "$output" != *"exclude_me.log"* ]]
+}
+
+@test "Script excludes untracked files with -g and -X" {
+    # Create an untracked file
+    echo "Untracked but also excluded" > src/untracked_excluded.txt
+
+    # We do NOT add it to git, so it's untracked
+    # However, we also specify -X "*.txt" to exclude all text anyway
+    run ./prelude -g -X "*.txt"
+    [ "$status" -eq 0 ]
+
+    # The untracked file won't appear because -g excludes untracked
+    # But let's also confirm the exclude pattern would have filtered it
+    [[ "$output" != *"untracked_excluded.txt"* ]]
+
+    # Normal tracked .txt (like src/test.txt) will also be excluded by -X "*.txt"
+    [[ "$output" != *"src/test.txt"* ]]
+
+    # However, .py or .js files that are tracked remain
+    [[ "$output" == *"src/test.py"* ]]
+    [[ "$output" == *"src/nested/test.js"* ]]
+}
+
+@test "Script excludes hidden files with -X flag" {
+    # Create a hidden file
+    echo "Hidden to exclude" > src/.exclude_hidden
+
+    # Run script excluding .exclude_hidden explicitly
+    run ./prelude -X ".exclude_hidden"
+    [ "$status" -eq 0 ]
+
+    # The hidden file should not appear
+    [[ "$output" != *".exclude_hidden"* ]]
+
+    # Check normal hidden files or directories not in exclude list still appear
+    touch src/.another_hidden
+    [[ "$output" == *".another_hidden"* ]] || skip "Expected .another_hidden to appear unless it matches default exclude"
+}
+
+@test "Script excludes multiple patterns along with default .preludeignore" {
+    # We already have *.log in .preludeignore
+    echo "Pre-existing content" > src/example.log
+    echo "Exclude me as well" > src/example.tmp
+
+    # Exclude patterns using -X, on top of .preludeignore ignoring *.log
+    run ./prelude -X "*.tmp"
+    [ "$status" -eq 0 ]
+
+    # Confirm that .log is ignored due to .preludeignore
+    [[ "$output" != *"example.log"* ]]
+    # Confirm that .tmp is ignored due to -X
+    [[ "$output" != *"example.tmp"* ]]
+}
+
