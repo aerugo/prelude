@@ -6,7 +6,6 @@
 
 By default, Prelude **copies** this final prompt to your clipboard. You can also **save** it to a file or choose to **display** it in your terminal.
 
----
 
 ### Usage
 
@@ -111,7 +110,36 @@ brew install prelude
 
 Otherwise, install manually by placing the `prelude` script in your `$PATH` and ensuring it’s **executable**.
 
----
+This script generates a prompt containing the file tree and concatenated file contents of a specified directory. The prompt can be copied to the clipboard and optionally saved to a file.
+
+
+#### Options
+
+- `-P <relative_path>`: Specify a relative path to include only files below that path. If not specified, the script will include all files in the current directory and its subdirectories.
+- `-F <output_filename>`: Specify a filename to save the generated prompt. If not specified, the prompt will only be copied to the clipboard.
+- `-M <match_pattern>`: Specify pattern(s) to match filenames and only include those files. Patterns are case-insensitive by default.  Valid wildcard operators are '*' (any zero or more characters), '?' (any single character), '[...]' (any single character listed between brackets (optional - (dash) for character range may be used: ex: [A-Z]), and '[^...]' (any single character not listed in brackets) and '|' separates alternate patterns.
+- `-g`: Only include files tracked by git.
+- `-c`: Respect case sensitivity in pattern matching. 
+- `--help`: Display help information.
+- `--manual`: Display the manual.
+
+
+#### Examples
+
+- `./prelude`: Generate a prompt for all files in the current directory and copy it to the clipboard.
+- `./prelude -P src`: Generate a prompt for all files below the specified path and copy it to the clipboard.
+- `./prelude -F prompt.txt`: Generate a prompt for all files in the current directory and save it to a file.
+- `./prelude -P src -F prompt.txt`: Generate a prompt for all files below the specified path and save it to a file.
+- `./prelude -M "*.txt|*.py"`: Generate a prompt for all .txt and .py files.
+- `./prelude -M "test*"`: Generate a prompt for all files starting with 'test'.
+- `./prelude -g`: Generate a prompt for all git-tracked files in the current directory.
+- `./prelude -g -P src`: Generate a prompt for all git-tracked files below the specified path.
+- `./prelude -g -M "*.js"`: Generate a prompt for all git-tracked .js files.
+
+### Notes
+
+- The script checks for the presence of clipboard commands (pbcopy, xclip, xsel, clip, wl-copy) and uses the first one found to copy the prompt to the clipboard. If none are found and no output file is specified, the prompt is printed to stdout.
+- The script reads `.gitignore` and `.preludeignore` files to exclude specified patterns from the file tree.
 
 ### Dependencies
 
@@ -119,7 +147,16 @@ Otherwise, install manually by placing the `prelude` script in your `$PATH` and 
 - **`git`**: Required for `-g` (git-tracked) mode.
 - **A clipboard tool** (optional): Prelude checks for `pbcopy`, `xclip`, `xsel`, `clip`, or `wl-copy` to copy the prompt. If none is found, no error is thrown (the script still runs), but no actual copying will occur.
 
----
+### Error Handling
+
+- If the specified path does not exist or is not a directory, an error message is displayed, and the script exits.
+- If no clipboard command is found and no output file is specified, the prompt is printed to stdout.
+- If no clipboard command is found and an output file is specified, the prompt is saved to the file without copying to the clipboard.
+
+### Completion
+
+- The script copies the generated prompt to the clipboard and optionally saves it to a specified file.
+- A message is printed to indicate the completion, listing the files included in the prompt.
 
 ### Testing
 

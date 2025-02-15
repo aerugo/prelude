@@ -215,19 +215,19 @@ while getopts ":P:F:M:X:cgd-:" opt; do
                 help) print_usage; exit 0 ;;
                 manual) print_manual; exit 0 ;;
                 *)
-                    echo "Invalid option: --$OPTARG"
+                    echo >/dev/stderr "Invalid option: --$OPTARG"
                     print_usage
                     exit 1
                     ;;
             esac
             ;;
         \?)
-            echo "Invalid option: $OPTARG"
+            echo >/dev/stderr "Invalid option: $OPTARG"
             print_usage
             exit 1
             ;;
         :)
-            echo "Invalid option: $OPTARG requires an argument"
+            echo >/dev/stderr "Invalid option: $OPTARG requires an argument"
             print_usage
             exit 1
             ;;
@@ -243,14 +243,14 @@ fi
 # Validate each path
 for p in "${paths[@]}"; do
     if [ ! -d "$p" ]; then
-        echo "Error: The specified path '$p' does not exist or is not a directory."
+        echo >/dev/stderr "Error: The specified path '$p' does not exist or is not a directory."
         exit 1
     fi
 done
 
 # If -g but no .git
 if $git_only && [ ! -d ".git" ]; then
-    echo "error: Not a git repository."
+    echo >/dev/stderr "error: Not a git repository."
     exit 1
 fi
 
@@ -382,12 +382,26 @@ copy_to_clipboard "$prompt"
 # ------------------------------------------------------
 # Only show the final prompt if $display_prompt == true
 if [ "$display_prompt" = true ]; then
-    echo "$prompt"
+    echo >/dev/stderr "$prompt"
+fi
+
+# If final prompt is not displayed, we'll print the file tree
+if [ "$display_prompt" = false ]; then
+# Print completion message
+    echo >/dev/stderr "-------"
+    echo >/dev/stderr "PRELUDE"
+    echo >/dev/stderr "-------"
+    echo >/dev/stderr "Got prompt with file tree and concatenated file contents."
+    echo >/dev/stderr "Files and directories in this file tree are included in the prompt, except for binary files."
+    echo >/dev/stderr ""
+    echo >/dev/stderr "$file_tree"
+    echo >/dev/stderr ""
+    echo >/dev/stderr "The prompt has been copied to the clipboard."
 fi
 
 # If -F is provided, write to that file
 if [ -n "$output_filename" ]; then
     printf "%s" "$prompt" > "$output_filename"
     # The BATS tests expect this exact line in the script output
-    echo "The prompt has been saved to $output_filename."
+    echo >/dev/stderr "The prompt has been saved to $output_filename."
 fi
