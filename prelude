@@ -285,7 +285,7 @@ if $git_only; then
 else
     for p in "${paths[@]}"; do
         if [ -z "$all_entries" ]; then
-            all_entries="$(find "$p" -print)"
+            all_entries="$(find "$p" -printf "%P\n")"
         else
             all_entries="$all_entries
 $(find "$p" -print)"
