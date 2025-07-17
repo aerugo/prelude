@@ -277,10 +277,10 @@ read_ignore_file ".gitignore" ""
 read_ignore_file ".preludeignore" ""
 
 if $include_submodules && [ -f .gitmodules ]; then
-    git submodule status --recursive | awk '{print $2}' | while read -r sub_path; do
+    while read -r sub_path; do
         read_ignore_file "$sub_path/.gitignore" "$sub_path/"
         read_ignore_file "$sub_path/.preludeignore" "$sub_path/"
-    done
+    done < <(git submodule status --recursive | awk '{print $2}')
 fi
 
 if [ -n "$ignore_patterns" ]; then
@@ -306,7 +306,7 @@ if $git_only; then
     all_entries="$(git ls-files -- "${paths[@]}")"
     if $include_submodules && [ -f .gitmodules ]; then
         # Use git submodule status to correctly handle paths and initialization state
-        git submodule status --recursive | while read -r status_line; do
+        while read -r status_line; do
             # Check if submodule is initialized (first char is not a space)
             if [[ ! "$status_line" =~ ^\  ]]; then
                 sub_path=$(echo "$status_line" | awk '{print $2}')
@@ -318,7 +318,7 @@ $sub_entries"
                 sub_path=$(echo "$status_line" | awk '{print $2}')
                 submodule_warnings="${submodule_warnings}Skipped uninitialized submodule: $sub_path\n"
             fi
-        done
+        done < <(git submodule status --recursive)
     fi
 else
     for p in "${paths[@]}"; do
