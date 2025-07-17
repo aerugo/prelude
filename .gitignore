@@ -68,3 +68,4 @@ dist/
 # Ignore Homebrew related files
 *.bottle
 *.bottle.json
+.aider*
