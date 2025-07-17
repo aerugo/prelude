@@ -12,12 +12,13 @@
 
 print_usage() {
     cat <<EOF
-Usage: $0 [-P <relative_path>] [-F <output_filename>] [-g] [-c] [-M <include_pattern>] [-X <exclude_pattern>] [-d] [--help] [--manual]
+Usage: $0 [-P <relative_path>] [-F <output_filename>] [-g] [-s] [-c] [-M <include_pattern>] [-X <exclude_pattern>] [-d] [--help] [--manual]
   -P <relative_path>    Specify a path to include. Can be repeated.
   -F <output_filename>  Specify a filename to save the prompt.
   -M <include_pattern>  Pattern(s) to *include* (shell wildcards). Use '|' to separate multiple.
   -X <exclude_pattern>  Pattern(s) to *exclude*. Use '|' to separate multiple.
   -g                    Only include git-tracked files.
+  -s                    Include git submodules (requires -g).
   -c                    Case-sensitive matching for -M and -X.
   -d                    Display the final prompt on stdout (overrides quiet mode).
   --help                Display brief usage.
@@ -54,6 +55,10 @@ OPTIONS
   -g
       Include only files tracked by git (excludes untracked files).
       Fails if there's no .git directory in the current folder.
+
+  -s
+      Include git-tracked files from initialized submodules. This option requires -g.
+      Prelude will recursively search through submodules and apply all other filters.
 
   -c
       Make pattern matching case-sensitive (default is case-insensitive).
@@ -97,6 +102,8 @@ include_pattern=""
 exclude_pattern_user=""
 git_only=false
 case_sensitive=false
+include_submodules=false
+submodule_warnings=""
 display_prompt=false   # user override with -d
 
 # We'll detect if stdout is a TTY
@@ -147,6 +154,7 @@ copy_to_clipboard() {
 
 read_ignore_file() {
     local file="$1"
+    local prefix="$2" # Path prefix for submodule patterns
     [ -f "$file" ] || return
     while IFS= read -r line || [ -n "$line" ]; do
         # Trim
@@ -164,6 +172,7 @@ read_ignore_file() {
             *) line="*$line"
         esac
 
+        line="$prefix$line"
         if [ -z "$ignore_patterns" ]; then
             ignore_patterns="$line"
         else
@@ -200,7 +209,7 @@ done
 # 5) Parse arguments
 # ------------------------------------------------------
 
-while getopts ":P:F:M:X:cgd-:" opt; do
+while getopts ":P:F:M:X:cgsd-:" opt; do
     case "$opt" in
         P) paths+=( "$OPTARG" ) ;;
         F) output_filename="$OPTARG" ;;
@@ -208,6 +217,7 @@ while getopts ":P:F:M:X:cgd-:" opt; do
         X) exclude_pattern_user="$OPTARG" ;;
         c) case_sensitive=true ;;
         g) git_only=true ;;
+        s) include_submodules=true ;;
         d) display_prompt=true ;;
         -)
             # Possibly a long option
@@ -235,6 +245,11 @@ while getopts ":P:F:M:X:cgd-:" opt; do
 done
 shift $((OPTIND - 1))
 
+if $include_submodules && ! $git_only; then
+    echo >/dev/stderr "Error: -s requires -g."
+    exit 1
+fi
+
 # If no -P, default to "."
 if [ ${#paths[@]} -eq 0 ]; then
     paths=( "." )
@@ -258,8 +273,15 @@ fi
 # 6) Incorporate .gitignore / .preludeignore
 # ------------------------------------------------------
 
-read_ignore_file ".gitignore"
-read_ignore_file ".preludeignore"
+read_ignore_file ".gitignore" ""
+read_ignore_file ".preludeignore" ""
+
+if $include_submodules && [ -f .gitmodules ]; then
+    git submodule status --recursive | awk '{print $2}' | while read -r sub_path; do
+        read_ignore_file "$sub_path/.gitignore" "$sub_path/"
+        read_ignore_file "$sub_path/.preludeignore" "$sub_path/"
+    done
+fi
 
 if [ -n "$ignore_patterns" ]; then
     default_excludes="$default_excludes|$ignore_patterns"
@@ -282,6 +304,22 @@ fi
 all_entries=""
 if $git_only; then
     all_entries="$(git ls-files -- "${paths[@]}")"
+    if $include_submodules && [ -f .gitmodules ]; then
+        # Use git submodule status to correctly handle paths and initialization state
+        git submodule status --recursive | while read -r status_line; do
+            # Check if submodule is initialized (first char is not a space)
+            if [[ ! "$status_line" =~ ^\  ]]; then
+                sub_path=$(echo "$status_line" | awk '{print $2}')
+                # Get git-tracked files inside the submodule, prefixed with the submodule path
+                sub_entries=$( (cd "$sub_path" 2>/dev/null && git ls-files) | sed "s|^|$sub_path/|" )
+                all_entries="$all_entries
+$sub_entries"
+            else
+                sub_path=$(echo "$status_line" | awk '{print $2}')
+                submodule_warnings="${submodule_warnings}Skipped uninitialized submodule: $sub_path\n"
+            fi
+        done
+    fi
 else
     for p in "${paths[@]}"; do
         if [ -z "$all_entries" ]; then
@@ -348,8 +386,30 @@ file_tree="$(echo "$filtered_entries" | tree -fia --noreport --prune --fromfile)
 # 10) Concatenate text files
 # ------------------------------------------------------
 concatenated=""
+current_submodule_path=""
+declare -a submodule_paths=()
+if $include_submodules && [ -f .gitmodules ]; then
+    # Get a list of submodule paths to identify them later
+    while IFS= read -r path; do submodule_paths+=("$path"); done < <(git submodule status --recursive | awk '{print $2}')
+fi
+
 while IFS= read -r e; do
     if is_text_file "$e"; then
+        file_submodule_path=""
+        if $include_submodules; then
+            for sub_path in "${submodule_paths[@]}"; do
+                if [[ "$e" == "$sub_path/"* ]]; then
+                    file_submodule_path="$sub_path"
+                    break
+                fi
+            done
+        fi
+
+        if [ -n "$file_submodule_path" ] && [ "$file_submodule_path" != "$current_submodule_path" ]; then
+            concatenated+="\n\n--- Submodule: $file_submodule_path ---"
+            current_submodule_path="$file_submodule_path"
+        fi
+
         concatenated+="
 
 --- File: $e ---
@@ -357,6 +417,7 @@ while IFS= read -r e; do
 $(cat "$e")"
     fi
 done <<< "$filtered_entries"
+concatenated="$(echo "$concatenated" | sed '/^$/d')" # Clean up leading newlines
 
 # ------------------------------------------------------
 # 11) Build final prompt
@@ -364,6 +425,14 @@ done <<< "$filtered_entries"
 prompt="
 $PROMPT_HEADER
 $COPIED_MESSAGE
+
+"
+if [ -n "$submodule_warnings" ]; then
+    prompt+="
+WARNINGS:
+$(echo -e "$submodule_warnings" | sed 's/\\n$//')" # Add warnings, remove trailing newline
+fi
+prompt+="
 
 Files included in the prompt are:
 $file_tree
@@ -380,6 +449,11 @@ copy_to_clipboard "$prompt"
 # ------------------------------------------------------
 # 13) Output logic
 # ------------------------------------------------------
+if [ -n "$submodule_warnings" ]; then
+    echo >/dev/stderr "---"
+    echo >/dev/stderr "PRELUDE WARNINGS:"
+    echo -e >/dev/stderr "$submodule_warnings"
+fi
 # Only show the final prompt if $display_prompt == true
 if [ "$display_prompt" = true ]; then
     echo >/dev/stderr "$prompt"
